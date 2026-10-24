@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101827"><title>楓葉之塔｜BGM 自動切換實驗版</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#101827;color:white;font-family:system-ui}#app{height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}header{padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:14px}#status{font-size:12px;color:#fbbf24}#stage{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center}ruffle-player{width:100%;height:100%}#controls{display:flex;align-items:center;justify-content:space-between;padding:8px;gap:8px}.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:4px}.actions{display:flex;gap:6px}button{min-width:48px;min-height:48px;background:#334155;color:white;border:1px solid #64748b;border-radius:12px;font-size:18px;touch-action:none;user-select:none}button:active,.pressed{background:#64748b}#note{text-align:center;font-size:11px;color:#cbd5e1;padding:4px}@media(orientation:landscape) and (max-height:650px){header{height:30px;padding:3px 10px}#stage{position:absolute;top:32px;bottom:3px;left:22%;right:24%}#controls{position:absolute;inset:32px 0 0;pointer-events:none}#controls>*{pointer-events:auto}.dpad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px)}button{min-width:40px;min-height:40px}#note{display:none}}@media(max-width:360px){.dpad{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px)}button{min-width:42px}}
+ .musicbar{display:flex;gap:8px;align-items:center;justify-content:center;padding:5px;font-size:12px;background:#182235}.musicbar button{min-height:34px;min-width:58px;font-size:12px}.musicbar{flex-wrap:wrap}.musicbar input{width:90px}.musicbar button{min-width:65px} </style></head><body><div id="app"><header><b>🍁 楓葉之塔 MapleTower</b><span id="status">BGM 四場景記錄修正版 V16</span></header><div id="stage"></div><div id="controls"><div class="dpad"><span></span><button data-key="ArrowUp">▲</button><span></span><button data-key="ArrowLeft">◀</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button></div><div class="actions"><button data-key="KeyZ">Z</button><button data-key="KeyX">X</button><button data-key="Enter">↵</button></div></div><div class="musicbar"><span id="scene">場景：診斷中</span><button id="cal-title">記錄標題</button><button id="cal-explore">記錄探索</button><button id="cal-battle">記錄戰鬥準備</button><button id="cal-battle-action" type="button">記錄我方行動</button><button id="music-toggle">音樂：開</button><input aria-label="音量" id="volume" type="range" min="0" max="100" value="35"></div><div id="note">V16：戰鬥進入與離開採不同連續確認門檻；原版未修改</div></div>
+<script>
+/* Request persistent WebGL framebuffer before Ruffle initializes; experimental only. */
+(()=>{const orig=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(kind,options){if(kind==="webgl"||kind==="webgl2"||kind==="experimental-webgl"){options=Object.assign({},options||{},{preserveDrawingBuffer:true});}return orig.call(this,kind,options);};})();
+</script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={autoplay:"on",unmuteOverlay:"visible",letterbox:"on",deviceFontRenderer:"canvas"};</script><script src="https://unpkg.com/@ruffle-rs/ruffle@latest/ruffle.js"></script><script>
+let player;const status=document.getElementById("status");window.addEventListener("load",async()=>{try{
+status.textContent="BGM：檢查遊戲檔…";
+const response=await fetch("./game.swf?v=3",{cache:"no-store"});
+if(!response.ok)throw Error("SWF HTTP "+response.status);
+const bytes=await response.arrayBuffer();
+const signature=String.fromCharCode(...new Uint8Array(bytes.slice(0,3)));
+if(!["FWS","CWS","ZWS"].includes(signature))throw Error("SWF 格式異常："+signature);
+status.textContent="BGM：SWF "+Math.round(bytes.byteLength/1024)+"KB，啟動模擬器…";
+if(!window.RufflePlayer?.newest)throw Error("Ruffle 程式未載入");
+player=window.RufflePlayer.newest().createPlayer();
+document.getElementById("stage").appendChild(player);
+await player.load({data:new Uint8Array(bytes),swfFileName:"game.swf"});
+status.textContent="BGM：已送入遊戲（請檢查畫面）";
+}catch(e){status.textContent="BGM 失敗："+(e?.message||String(e));console.error(e)}});
+const keys={ArrowUp:"ArrowUp",ArrowDown:"ArrowDown",ArrowLeft:"ArrowLeft",ArrowRight:"ArrowRight",KeyZ:"z",KeyX:"x",Enter:"Enter"};const active=new Map();function send(code,type){if(!player)return;player.focus();player.dispatchEvent(new KeyboardEvent(type,{key:keys[code],code,bubbles:true,cancelable:true,composed:true}))}document.querySelectorAll("[data-key]").forEach(b=>{const k=b.dataset.key;b.addEventListener("pointerdown",e=>{e.preventDefault();b.setPointerCapture(e.pointerId);active.set(e.pointerId,k);b.classList.add("pressed");send(k,"keydown")});function release(e){if(active.get(e.pointerId)!==k)return;active.delete(e.pointerId);b.classList.remove("pressed");send(k,"keyup")}b.addEventListener("pointerup",release);b.addEventListener("pointercancel",release);b.addEventListener("lostpointercapture",release)});
+</script>
+<script>
+/* Experimental browser-side music manager. It never modifies game.swf.
+   Supply legally usable audio files under audio/ to hear music.
+   Canvas-based classification is heuristic and reports unknown if inaccessible. */
+(()=>{const names={title:"標題",explore:"探索",battle:"一般戰鬥",boss:"最終 Boss"};
+const files={title:"audio/title.mp3",explore:"audio/explore.mp3",battle:"audio/battle.mp3",boss:"audio/boss.mp3"};
+let current="",enabled=true,unlocked=false;const audio=new Audio();audio.loop=true;audio.volume=.35;
+const label=document.getElementById("scene"),toggle=document.getElementById("music-toggle");
+document.getElementById("volume").addEventListener("input",e=>audio.volume=Number(e.target.value)/100);
+toggle.onclick=()=>{enabled=!enabled;toggle.textContent="音樂："+(enabled?"開":"關");if(!enabled)audio.pause();else if(unlocked)audio.play().catch(()=>{});};
+document.addEventListener("pointerdown",()=>{unlocked=true;if(enabled&&current&&audio.paused)audio.play().catch(()=>{});},{once:true});
+function scene(next){if(!next||next===current)return;current=next;label.textContent="場景："+names[next]+"（實驗辨識）";audio.pause();audio.src=files[next];if(enabled&&unlocked)audio.play().catch(()=>{label.textContent+="｜尚無音源檔";});}
+const scratch=document.createElement("canvas");scratch.width=64;scratch.height=48;const ctx=scratch.getContext("2d",{willReadFrequently:true});
+const saved=JSON.parse(localStorage.getItem("maple-scene-multi-v16")||"{}");const names2={...names,battleAction:"我方行動"};let previous=null,change=0,frameCount=0;
+function fingerprint(){if(!player)return null;const c=player.shadowRoot?.querySelector("canvas");if(!c||!c.width)return null;
+ctx.drawImage(c,0,0,64,48);const data=ctx.getImageData(0,0,64,48).data;
+const result=[];for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+let r=0,g=0,b=0,n=0;const regions=[[4,5,60,30],[12,2,38,17],[0,34,17,14]];const area=regions[({title:0,explore:1,battle:2,battleAction:2})[window._calibratingScene||"title"]];for(let y=Math.floor(area[1]+row*area[3]/4);y<Math.floor(area[1]+(row+1)*area[3]/4);y+=1)for(let x=Math.floor(area[0]+col*area[2]/4);x<Math.floor(area[0]+(col+1)*area[2]/4);x+=1){let i=(y*64+x)*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
+result.push(r/n,g/n,b/n);}return result;}
+for(const [name,id] of [["title","cal-title"],["explore","cal-explore"],["battle","cal-battle"],["battleAction","cal-battle-action"]]){
+const button=document.getElementById(id);button.onclick=()=>{try{window._calibratingScene=name;const v=fingerprint();if(!v)throw Error("尚未取得遊戲畫面");const duplicates=Object.keys(saved).filter(k=>k!==name&&saved[k].every((x,i)=>x===v[i]));if(duplicates.length && name!=="battleAction")throw Error("畫面與 "+duplicates.join("、")+" 相同，請稍後再試");saved[name]=v;localStorage.setItem("maple-scene-multi-v16",JSON.stringify(saved));label.textContent="已記錄："+names2[name]+"（"+Object.keys(saved).length+"/4）";}catch(e){label.textContent="校正失敗："+e.message;}};}
+let votes=[],lastAccepted="",battleOn=0,battleOff=0;
+function barScore(){
+ const c=player?.shadowRoot?.querySelector("canvas");if(!c||!c.width)return null;
+ // Higher resolution avoids averaging four thin HP bars into the blue HUD.
+ const W=256,H=192;const scan=document.createElement("canvas");scan.width=W;scan.height=H;
+ const g=scan.getContext("2d",{willReadFrequently:true});g.drawImage(c,0,0,W,H);
+ const d=g.getImageData(0,0,W,H).data;
+ // The four horizontal bars occupy the right side of the party HUD.
+ // Sample each expected vertical band independently, with a tolerance for scaling.
+ const centers=[.802,.852,.902,.952],counts=[];
+ for(const cy of centers){let best=0;
+   for(let y=Math.round((cy-.012)*H);y<=Math.round((cy+.012)*H);y++){
+     let n=0;for(let x=Math.round(.805*W);x<Math.round(.925*W);x++){
+       const i=(y*W+x)*4,r=d[i],green=d[i+1],blue=d[i+2];
+       if(r>125&&r>blue*1.30&&r>=green*.94&&r-blue>48)n++;
+     }best=Math.max(best,n);
+   }counts.push(best);
+ }
+ return {rows:counts,peaks:counts.filter(v=>v>=7).length,total:counts.reduce((a,b)=>a+b,0)};
+}
+setInterval(()=>{try{
+ const entries=Object.entries(saved);
+ const bars=barScore();if(!bars){label.textContent="V16 無法擷取畫面";return;}
+ // Battle is positively identified by the four coloured horizontal bars.
+ const barBattle=bars.peaks>=3&&bars.total>=24;
+ let ranked=[],best="unknown",confidence=0;
+ if(entries.length>=2){
+ ranked=entries.map(([name,ref])=>{window._calibratingScene=name;const v=fingerprint();return {name,d:v?ref.reduce((sum,x,i)=>sum+(x-v[i])**2,0)/ref.length:Infinity};}).sort((a,b)=>a.d-b.d);
+ const grouped={};for(const item of ranked){const k=item.name==="battleAction"?"battle":item.name;grouped[k]=Math.min(grouped[k]??Infinity,item.d);}
+ const classes=Object.entries(grouped).sort((a,b)=>a[1]-b[1]);if(classes.length>=2){confidence=Math.max(0,Math.round((classes[1][1]-classes[0][1])/(classes[1][1]+1)*100));if(confidence>=18)best=classes[0][0];}
+ }
+ // Hysteresis: battle starts after 2 positive frames and ends only after 5 negative frames.
+ if(barBattle){battleOn++;battleOff=0;}else{battleOff++;battleOn=0;}
+ const inBattle=lastAccepted==="battle";
+ let candidate;
+ if(inBattle){
+   candidate=battleOff>=5?(best==="title"?"title":best==="explore"?"explore":"explore"):"battle";
+ }else{
+   candidate=battleOn>=2?"battle":(best==="battle"?"unknown":best);
+ }
+ votes.push(candidate);if(votes.length>7)votes.shift();
+ // Fast entry, slower exit; unknown never forces a scene switch.
+ const needed=candidate==="battle"?2:5;
+ const recent=votes.slice(-needed);
+ if(candidate!=="unknown"&&recent.length===needed&&recent.every(x=>x===candidate)&&candidate!==lastAccepted){
+   lastAccepted=candidate;scene(candidate);votes=[];
+ }
+ label.textContent="V16 狀態條："+bars.peaks+"/4｜各列："+bars.rows.join(",")+"｜"+(barBattle?"確認戰鬥":"未確認戰鬥")+"｜戰鬥連續："+battleOn+" / 離開連續："+battleOff+"｜背景："+(names[best]||"不確定")+"("+confidence+"%)｜目前："+(names[current]||"未定");
+
+}catch(e){label.textContent="V16 辨識失敗："+e.message;}},850);
+})();
+</script></body></html>
