@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101827"><title>楓葉之塔</title><meta name="apple-mobile-web-app-title" content="楓葉之塔"><meta name="application-name" content="楓葉之塔"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/1/1d/A_Maple_Icon_Like_MapleStory%2CMay_2022.png"><link rel="apple-touch-icon" sizes="180x180" href="https://upload.wikimedia.org/wikipedia/commons/1/1d/A_Maple_Icon_Like_MapleStory%2CMay_2022.png">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#101827;color:white;font-family:system-ui}#app{height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}header{padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:14px}#status{font-size:12px;color:#fbbf24}#stage{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center}ruffle-player{width:100%;height:100%}#controls{display:flex;align-items:center;justify-content:space-between;padding:8px;gap:8px}.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:4px}.actions{display:flex;gap:6px}button{min-width:48px;min-height:48px;background:#334155;color:white;border:1px solid #64748b;border-radius:12px;font-size:18px;touch-action:none;user-select:none} .dpad,.dpad *,.actions,.actions *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important}button:active,.pressed{background:#64748b}#note{text-align:center;font-size:11px;color:#cbd5e1;padding:4px}@media(orientation:landscape) and (max-height:650px){header{height:30px;padding:3px 10px}#stage{position:absolute;top:32px;bottom:3px;left:22%;right:24%}#controls{position:absolute;inset:32px 0 0;pointer-events:none}#controls>*{pointer-events:auto}.dpad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px)}button{min-width:40px;min-height:40px}#note{display:none}}@media(max-width:360px){.dpad{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px)}button{min-width:42px}}
+ .musicbar{display:flex;gap:8px;align-items:center;justify-content:center;padding:5px;font-size:12px;background:#182235}.musicbar button{min-height:34px;min-width:58px;font-size:12px}.musicbar{flex-wrap:wrap}.musicbar input{width:90px}.musicbar button{min-width:65px} </style></head><body><div id="app"><header><b>🍁 楓葉之塔 MapleTower</b><span id="status">BGM 四場景記錄修正版 V38</span></header><div id="stage"></div><div id="controls"><div class="dpad"><span></span><button data-key="ArrowUp">▲</button><span></span><button data-key="ArrowLeft">◀</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button></div><div class="actions"><button data-key="KeyZ">Z</button><button data-key="KeyX">X</button><button data-key="Enter">↵</button></div></div><div class="musicbar"><span id="scene">🎵 音樂待啟用</span><button id="music-toggle">音樂：開</button><input aria-label="音量" id="volume" type="range" min="0" max="100" value="35"></div><div id="note">V38 原始SWF音效對照測試｜字型暫時原尺寸｜Z／X／方向鍵／Enter｜原版未修改</div></div>
+<script>
+/* Request persistent WebGL framebuffer before Ruffle initializes; experimental only. */
+(()=>{const orig=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(kind,options){if(kind==="webgl"||kind==="webgl2"||kind==="experimental-webgl"){options=Object.assign({},options||{},{preserveDrawingBuffer:true});}return orig.call(this,kind,options);};})();
+</script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={autoplay:"on",unmuteOverlay:"hidden",letterbox:"on",deviceFontRenderer:"canvas"};</script><script src="https://unpkg.com/@ruffle-rs/ruffle@latest/ruffle.js"></script><script>
+async function shrinkSwfText(buffer){
+ const src=new Uint8Array(buffer);
+ if(String.fromCharCode(...src.slice(0,3))!=="CWS")return src;
+ const stream=new Blob([src.slice(8)]).stream().pipeThrough(new DecompressionStream("deflate"));
+ const body=new Uint8Array(await new Response(stream).arrayBuffer());
+ const rectSize=(5+4*(body[0]>>3)+7)>>3;
+ let at=rectSize+4,changed=0;
+ while(at+2<=body.length){
+  const header=body[at]|body[at+1]<<8;at+=2;
+  const tag=header>>6;let len=header&63;
+  if(len===63){len=(body[at]|body[at+1]<<8|body[at+2]<<16|body[at+3]<<24)>>>0;at+=4;}
+  if(tag===37&&len>8){
+   const rect=(5+4*(body[at+2]>>3)+7)>>3;
+   const flagPos=at+2+rect;
+   const flags=(body[flagPos]<<8)|body[flagPos+1];
+   if(flags&0x100){
+    const heightPos=flagPos+4;
+    const old=body[heightPos]|body[heightPos+1]<<8;
+    const next=Math.max(1,Math.round(old*0.90));
+    body[heightPos]=next&255;body[heightPos+1]=next>>8;changed++;
+   }
+  }
+  at+=len;if(tag===0)break;
+ }
+ const compressed=new Uint8Array(await new Response(new Blob([body]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+ const out=new Uint8Array(8+compressed.length);out.set(src.slice(0,8));out.set(compressed,8);
+ console.info("V38 SWF edit text font sizes reduced:",changed);
+ return out;
+}
+let player;const status=document.getElementById("status");window.addEventListener("load",async()=>{try{
+status.textContent="BGM：檢查遊戲檔…";
+const response=await fetch("./game.swf?v=3",{cache:"no-store"});
+if(!response.ok)throw Error("SWF HTTP "+response.status);
+const bytes=await response.arrayBuffer();
+const signature=String.fromCharCode(...new Uint8Array(bytes.slice(0,3)));
+if(!["FWS","CWS","ZWS"].includes(signature))throw Error("SWF 格式異常："+signature);
+status.textContent="BGM：SWF "+Math.round(bytes.byteLength/1024)+"KB，啟動模擬器…";
+if(!window.RufflePlayer?.newest)throw Error("Ruffle 程式未載入");
+player=window.RufflePlayer.newest().createPlayer();
+document.getElementById("stage").appendChild(player);
+await player.load({data:new Uint8Array(bytes),swfFileName:"game.swf"});
+status.textContent="BGM：已送入遊戲（請檢查畫面）";
+}catch(e){status.textContent="BGM 失敗："+(e?.message||String(e));console.error(e)}});
+// Prevent iOS text selection/callout only on directional controls.
+for(const group of document.querySelectorAll(".dpad,.actions")){
+ ["contextmenu","selectstart","dragstart"].forEach(type=>group.addEventListener(type,e=>e.preventDefault()));
+ group.addEventListener("touchstart",e=>{if(e.cancelable)e.preventDefault();},{passive:false});
+}
+const keys={ArrowUp:"ArrowUp",ArrowDown:"ArrowDown",ArrowLeft:"ArrowLeft",ArrowRight:"ArrowRight",KeyZ:"z",KeyX:"x",Enter:"Enter"};const active=new Map();function send(code,type){if(!player)return;player.focus();player.dispatchEvent(new KeyboardEvent(type,{key:keys[code],code,bubbles:true,cancelable:true,composed:true}))}document.querySelectorAll("[data-key]").forEach(b=>{const k=b.dataset.key;b.addEventListener("pointerdown",e=>{e.preventDefault();b.setPointerCapture(e.pointerId);active.set(e.pointerId,k);b.classList.add("pressed");send(k,"keydown")});function release(e){if(active.get(e.pointerId)!==k)return;active.delete(e.pointerId);b.classList.remove("pressed");send(k,"keyup")}b.addEventListener("pointerup",release);b.addEventListener("pointercancel",release);b.addEventListener("lostpointercapture",release)});
+
+// Desktop keyboard fallback: route real physical key events into Ruffle even
+// when the page header/music controls hold focus. Never intercept text inputs.
+window.addEventListener("keydown",forwardPhysicalKey,true);
+window.addEventListener("keyup",forwardPhysicalKey,true);
+function forwardPhysicalKey(e){
+ if(!player||e.isComposing||e.ctrlKey||e.metaKey||e.altKey)return;
+ const tag=e.target?.tagName?.toLowerCase();
+ if(tag==="input"||tag==="textarea"||tag==="select"||e.target?.isContentEditable)return;
+ const code=e.code;
+ if(!["KeyZ","KeyX","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Enter"].includes(code))return;
+ // When the actual keyboard event already targets Ruffle, don't duplicate it.
+ if(e.composedPath().includes(player))return;
+ e.preventDefault();
+ player.dispatchEvent(new KeyboardEvent(e.type,{key:keys[code],code,bubbles:true,cancelable:true,composed:true,repeat:e.repeat}));
+}
+</script>
+<script>
+/* Experimental browser-side music manager. It never modifies game.swf.
+   Supply legally usable audio files under audio/ to hear music.
+   Canvas-based classification is heuristic and reports unknown if inaccessible. */
+(()=>{const names={title:"標題",explore:"探索",battle:"一般戰鬥",boss:"最終 Boss"};
+// V38: built-in original synthesized demo themes; no external MP3 needed.
+let current="",enabled=true,unlocked=false;
+const label=document.getElementById("scene"),toggle=document.getElementById("music-toggle");
+let ac=null,master=null,timer=null,step=0,nextTime=0;
+const tracks={
+ title:{tempo:102,mel:[60,64,67,72,67,64,62,67,60,64,69,72,71,67,64,62],bass:[48,48,53,53,45,45,43,43]},
+ explore:{tempo:88,mel:[64,67,69,67,62,64,67,72,69,67,64,62,60,62,64,67],bass:[48,48,45,45,41,41,43,43]},
+ battle:{tempo:152,mel:[60,63,67,72,70,67,63,60,62,65,69,74,72,69,65,62],bass:[36,36,39,39,41,41,43,43]},
+ boss:{tempo:168,mel:[48,60,63,67,66,63,60,55,48,60,65,68,67,63,58,55],bass:[36,36,34,34,32,32,31,31]}
+};
+function initAudio(){if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.12;master.connect(ac.destination);}
+function tone(midi,time,dur,kind,volume){
+ if(!ac||!master)return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type=kind;o.frequency.setValueAtTime(440*Math.pow(2,(midi-69)/12),time);
+ g.gain.setValueAtTime(.0001,time);g.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),time+.015);
+ g.gain.exponentialRampToValueAtTime(.0001,time+dur);
+ o.connect(g);g.connect(master);o.start(time);o.stop(time+dur+.02);
+}
+function tick(){if(!ac||!enabled||!unlocked||!current)return;
+ const t=tracks[current]||tracks.explore;const beat=60/t.tempo/2;
+ while(nextTime<ac.currentTime+.2){
+  const n=step%t.mel.length;
+  tone(t.mel[n],nextTime,beat*.85,current==="battle"||current==="boss"?"sawtooth":"triangle",.12);
+  if(step%2===0)tone(t.bass[Math.floor(step/2)%t.bass.length],nextTime,beat*1.7,"sine",.20);
+  step++;nextTime+=beat;
+ }
+}
+function startMusic(){if(!enabled||!unlocked||!current)return;initAudio();ac.resume().catch(()=>{});nextTime=ac.currentTime+.06;if(!timer)timer=setInterval(tick,90);}
+function stopMusic(){if(timer){clearInterval(timer);timer=null;}if(ac&&master){master.gain.setTargetAtTime(0,ac.currentTime,.025);}}
+function scene(next){if(!next||next===current)return;current=next;step=0;
+ label.textContent="🎵 "+(names[next]||next)+"｜自動配樂";
+ if(ac&&master){master.gain.setTargetAtTime(0,ac.currentTime,.025);setTimeout(()=>{if(ac&&master){master.gain.setTargetAtTime(.12,ac.currentTime,.03);nextTime=ac.currentTime+.06;}},130);}
+ if(enabled&&unlocked)startMusic();
+}
+document.getElementById("volume").addEventListener("input",e=>{if(!ac||!master)return;master.gain.setTargetAtTime(Number(e.target.value)/100*.35,ac.currentTime,.03);});
+toggle.onclick=()=>{enabled=!enabled;toggle.textContent="音樂："+(enabled?"開":"關");if(enabled){if(ac&&master)master.gain.setTargetAtTime(.12,ac.currentTime,.03);startMusic();}else stopMusic();};
+function unlockAudio(){unlocked=true;initAudio();ac.resume().then(()=>{if(master)master.gain.setTargetAtTime(Number(document.getElementById("volume").value)/100*.35,ac.currentTime,.03);startMusic();}).catch(()=>{label.textContent="🎵 音效受瀏覽器限制，請點擊音樂：開";});}
+document.addEventListener("pointerdown",unlockAudio,{once:true});
+document.addEventListener("keydown",e=>{if(!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey)unlockAudio();},{once:true});
+toggle.addEventListener("click",unlockAudio);
+const scratch=document.createElement("canvas");scratch.width=64;scratch.height=48;const ctx=scratch.getContext("2d",{willReadFrequently:true});
+// No calibration UI or browser-specific scene templates required.
+const saved={};const names2={...names,battleAction:"我方行動"};
+let votes=[],lastAccepted="",battleOn=0,battleOff=0;
+function barScore(){
+ const c=player?.shadowRoot?.querySelector("canvas");if(!c||!c.width)return null;
+ // Higher resolution avoids averaging four thin HP bars into the blue HUD.
+ const W=256,H=192;const scan=document.createElement("canvas");scan.width=W;scan.height=H;
+ const g=scan.getContext("2d",{willReadFrequently:true});g.drawImage(c,0,0,W,H);
+ const d=g.getImageData(0,0,W,H).data;
+ // The four horizontal bars occupy the right side of the party HUD.
+ // Sample each expected vertical band independently, with a tolerance for scaling.
+ const centers=[.802,.852,.902,.952],counts=[];
+ for(const cy of centers){let best=0;
+   for(let y=Math.round((cy-.012)*H);y<=Math.round((cy+.012)*H);y++){
+     let n=0;for(let x=Math.round(.805*W);x<Math.round(.925*W);x++){
+       const i=(y*W+x)*4,r=d[i],green=d[i+1],blue=d[i+2];
+       if(r>125&&r>blue*1.30&&r>=green*.94&&r-blue>48)n++;
+     }best=Math.max(best,n);
+   }counts.push(best);
+ }
+ return {rows:counts,peaks:counts.filter(v=>v>=7).length,total:counts.reduce((a,b)=>a+b,0)};
+}
+let started=Date.now(),hasEnteredBattle=false,exploreCount=0,barCount=0,absentCount=0;
+const probe=document.createElement("canvas");probe.width=256;probe.height=192;
+const pg=probe.getContext("2d",{willReadFrequently:true});
+function hudScore(){
+ const c=player?.shadowRoot?.querySelector("canvas");if(!c||!c.width)return null;
+ pg.drawImage(c,0,0,256,192);const d=pg.getImageData(0,0,256,192).data;
+ // Both explore and battle have a broad blue party-status panel at the bottom.
+ let blue=0,opaque=0;
+ for(let y=163;y<189;y+=2)for(let x=84;x<198;x+=2){
+  const i=(y*256+x)*4,r=d[i],g=d[i+1],b=d[i+2];
+  if(b>r*1.17&&b>g*1.08&&b>48)blue++;
+  if(r+g+b>100)opaque++;
+ }
+ return {blue,opaque};
+}
+scene("title");
+setInterval(()=>{try{
+ const bars=barScore(),hud=hudScore();
+ if(!bars||!hud){label.textContent="V38 等待遊戲畫面";return;}
+ // Two colored HP rows plus a blue HUD are sufficient; require three readings.
+ const battle=(bars.peaks>=3&&bars.total>=24)||(bars.peaks>=2&&bars.total>=17&&hud.blue>=35);
+ if(battle){barCount++;absentCount=0;}else{absentCount++;barCount=0;}
+ if(barCount>=3){hasEnteredBattle=true;scene("battle");}
+ else if(current==="battle"&&absentCount>=5){scene("explore");}
+ else if(current!=="battle"){
+  // Blue status panel is present in exploration but absent on the title screen.
+  if(hud.blue>=35)exploreCount++;else exploreCount=0;
+  if(exploreCount>=3&&Date.now()-started>1800)scene("explore");
+ }
+ label.textContent="🎵 "+(names[current]||"辨識中")+"｜自動配樂";
+}catch(e){label.textContent="V38 辨識錯誤："+e.message;}},850);
+})();
+</script></body></html>
