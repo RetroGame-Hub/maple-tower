@@ -80,7 +80,7 @@ function forwardPhysicalKey(e){
    Canvas-based classification is heuristic and reports unknown if inaccessible. */
 (()=>{const names={title:"標題",explore:"探索",battle:"一般戰鬥",boss:"最終 Boss"};
 // V39: built-in original synthesized demo themes; no external MP3 needed.
-let current="",enabled=true,unlocked=false;
+let current="",enabled=false,unlocked=false;
 const label=document.getElementById("scene"),toggle=document.getElementById("music-toggle");
 let ac=null,master=null,timer=null,step=0,nextTime=0;
 const tracks={
@@ -114,7 +114,7 @@ function scene(next){if(!next||next===current)return;current=next;step=0;
  if(enabled&&unlocked)startMusic();
 }
 document.getElementById("volume").addEventListener("input",e=>{if(!ac||!master)return;master.gain.setTargetAtTime(Number(e.target.value)/100*.35,ac.currentTime,.03);});
-toggle.onclick=()=>{enabled=!enabled;toggle.textContent="音樂："+(enabled?"開":"關");if(enabled){if(ac&&master)master.gain.setTargetAtTime(.12,ac.currentTime,.03);startMusic();}else stopMusic();};
+toggle.onclick=()=>{ /* V39 MP3 player handles the music toggle; keep synth disabled */ };
 function unlockAudio(){unlocked=true;initAudio();ac.resume().then(()=>{if(master)master.gain.setTargetAtTime(Number(document.getElementById("volume").value)/100*.35,ac.currentTime,.03);startMusic();}).catch(()=>{label.textContent="🎵 音效受瀏覽器限制，請點擊音樂：開";});}
 document.addEventListener("pointerdown",unlockAudio,{once:true});
 document.addEventListener("keydown",e=>{if(!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey)unlockAudio();},{once:true});
