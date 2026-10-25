@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101827"><title>楓葉之塔</title><meta name="apple-mobile-web-app-title" content="楓葉之塔"><meta name="application-name" content="楓葉之塔"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/1/1d/A_Maple_Icon_Like_MapleStory%2CMay_2022.png"><link rel="apple-touch-icon" sizes="180x180" href="https://upload.wikimedia.org/wikipedia/commons/1/1d/A_Maple_Icon_Like_MapleStory%2CMay_2022.png">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#101827;color:white;font-family:system-ui}#app{height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}header{padding:7px 12px;display:flex;justify-content:space-between;align-items:center;font-size:14px}#status{font-size:12px;color:#fbbf24}#stage{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center}ruffle-player{width:100%;height:100%}#controls{display:flex;align-items:center;justify-content:space-between;padding:8px;gap:8px}.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:4px}.actions{display:flex;gap:6px}button{min-width:48px;min-height:48px;background:#334155;color:white;border:1px solid #64748b;border-radius:12px;font-size:18px;touch-action:none;user-select:none} .dpad,.dpad *,.actions,.actions *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;touch-action:none!important}button:active,.pressed{background:#64748b}#note{text-align:center;font-size:11px;color:#cbd5e1;padding:4px}@media(orientation:landscape) and (max-height:650px){header{height:30px;padding:3px 10px}#stage{position:absolute;top:32px;bottom:3px;left:22%;right:24%}#controls{position:absolute;inset:32px 0 0;pointer-events:none}#controls>*{pointer-events:auto}.dpad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px)}button{min-width:40px;min-height:40px}#note{display:none}}@media(max-width:360px){.dpad{grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px)}button{min-width:42px}}
+ .musicbar{display:flex;gap:8px;align-items:center;justify-content:center;padding:5px;font-size:12px;background:#182235}#global-mute{min-height:38px;min-width:130px;font-size:13px;background:#334155}.musicbar button{min-height:34px;min-width:58px;font-size:12px}.musicbar{flex-wrap:wrap}.musicbar input{width:90px}.musicbar button{min-width:65px} </style></head><body><div id="app"><header><b>🍁 楓葉之塔 MapleTower</b><span id="status">內建場景音樂 V58 測試版</span></header><div id="stage"></div><div id="controls"><div class="dpad"><span></span><button data-key="ArrowUp">▲</button><span></span><button data-key="ArrowLeft">◀</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button></div><div class="actions"><button data-key="KeyZ">Z</button><button data-key="KeyX">X</button><button data-key="Enter">↵</button></div></div><div style="text-align:center;padding:5px"><button id="global-mute" type="button">🔊 音樂：開</button></div><div id="native-status" style="font-size:12px;text-align:center;color:#fbbf24;padding:5px">正在分析原生 BGM…</div><div id="note">V58 測試版 內建音樂｜字型90%｜Z／X／方向鍵／Enter｜原版未修改</div></div>
+<script>
+/* Master audio gate: controls Ruffle's WebAudio and media elements together. */
+(function(){
+ let muted=false;
+ const contexts=new Set();
+ const NativeAudioContext=window.AudioContext||window.webkitAudioContext;
+ if(NativeAudioContext){
+  const Wrapped=function(...args){const ctx=new NativeAudioContext(...args);contexts.add(ctx);if(muted)ctx.suspend().catch(()=>{});return ctx;};
+  Wrapped.prototype=NativeAudioContext.prototype;
+  Object.setPrototypeOf(Wrapped,NativeAudioContext);
+  if(window.AudioContext)window.AudioContext=Wrapped;
+  if(window.webkitAudioContext)window.webkitAudioContext=Wrapped;
+ }
+ function apply(){
+  for(const ctx of contexts){
+   if(ctx.state==="closed")continue;
+   try{if(muted)ctx.suspend().catch(()=>{});else ctx.resume().catch(()=>{});}catch(e){}
+  }
+  for(const a of document.querySelectorAll("audio,video"))a.muted=muted;
+  const btn=document.getElementById("global-mute");
+  if(btn){btn.textContent=muted?"🔇 全部聲音：關":"🔊 全部聲音：開";btn.setAttribute("aria-pressed",String(muted));}
+ }
+ document.addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("global-mute")?.addEventListener("click",()=>{muted=!muted;apply();});
+  apply();
+ });
+ const observer=new MutationObserver(()=>{if(muted)for(const a of document.querySelectorAll("audio,video"))a.muted=true;});
+ document.addEventListener("DOMContentLoaded",()=>observer.observe(document.body,{childList:true,subtree:true}));
+})();
+</script><script>
+/* Request persistent WebGL framebuffer before Ruffle initializes; experimental only. */
+(()=>{const orig=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(kind,options){if(kind==="webgl"||kind==="webgl2"||kind==="experimental-webgl"){options=Object.assign({},options||{},{preserveDrawingBuffer:true});}return orig.call(this,kind,options);};})();
+</script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={autoplay:"on",unmuteOverlay:"hidden",letterbox:"on",deviceFontRenderer:"canvas"};</script><script src="https://unpkg.com/@ruffle-rs/ruffle@latest/ruffle.js"></script><script>
+async function shrinkSwfText(buffer){
+ const src=new Uint8Array(buffer);
+ if(String.fromCharCode(...src.slice(0,3))!=="CWS")return src;
+ const stream=new Blob([src.slice(8)]).stream().pipeThrough(new DecompressionStream("deflate"));
+ const body=new Uint8Array(await new Response(stream).arrayBuffer());
+ const rectSize=(5+4*(body[0]>>3)+7)>>3;
+ let at=rectSize+4,changed=0;
+ while(at+2<=body.length){
+  const header=body[at]|body[at+1]<<8;at+=2;
+  const tag=header>>6;let len=header&63;
+  if(len===63){len=(body[at]|body[at+1]<<8|body[at+2]<<16|body[at+3]<<24)>>>0;at+=4;}
+  if(tag===37&&len>8){
+   const rect=(5+4*(body[at+2]>>3)+7)>>3;
+   const flagPos=at+2+rect;
+   const flags=(body[flagPos]<<8)|body[flagPos+1];
+   if(flags&0x100){
+    const heightPos=flagPos+4;
+    const old=body[heightPos]|body[heightPos+1]<<8;
+    const next=Math.max(1,Math.round(old*0.90));
+    body[heightPos]=next&255;body[heightPos+1]=next>>8;changed++;
+   }
+  }
+  at+=len;if(tag===0)break;
+ }
+ const compressed=new Uint8Array(await new Response(new Blob([body]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+ const out=new Uint8Array(8+compressed.length);out.set(src.slice(0,8));out.set(compressed,8);
+ console.info("V58 測試版 SWF edit text font sizes reduced:",changed);
+ return out;
+}
+
+async function patchNativeBgm(input){
+ const bytes=new Uint8Array(input);
+ if(String.fromCharCode(...bytes.slice(0,3))!=="CWS")return bytes;
+ const body=new Uint8Array(await new Response(new Blob([bytes.slice(8)]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());
+ const urls={"title":"./%E1%84%86%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3%E1%86%AF%E1%84%89%E1%85%B3%E1%84%90%E1%85%A9%E1%84%85%E1%85%B5%20BGM%20-%20%E1%84%80%E1%85%AE%20%E1%84%85%E1%85%A9%E1%84%80%E1%85%B3%E1%84%8B%E1%85%B5%E1%86%AB.mp3","explore":"./%E1%84%86%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3%E1%86%AF%E1%84%89%E1%85%B3%E1%84%90%E1%85%A9%E1%84%85%E1%85%B5%20BGM%20-%20%E1%84%80%E1%85%A2%E1%84%86%E1%85%B5%E1%84%80%E1%85%AE%E1%86%AF%20Ancient%20Move.mp3","battle":"./%E1%84%86%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3%E1%86%AF%E1%84%89%E1%85%B3%E1%84%90%E1%85%A9%E1%84%85%E1%85%B5%20BGM%20-%20%E1%84%80%E1%85%AE%20%E1%84%8C%E1%85%A1%E1%84%8F%E1%85%AE%E1%86%B7%20Final%20Fight.mp3","boss":"./MapleStory%20BGM%20Crimsonwood%20Grandmasters%20Gauntlet.mp3"};
+ const target=Object.fromEntries(Object.entries(urls).map(([k,v])=>[k,new URL(v,location.href).href]));
+ const mapping={
+  "ff9_prelude.mp3":"title","ff.mp3":"title","ff9-hitori.mp3":"explore",
+  "btl-02.mp3":"battle","btl-03.mp3":"battle","btl-04.mp3":"battle",
+  "btl-05.mp3":"battle","btl-06.mp3":"battle","btl-07.mp3":"battle",
+  "btl-08.mp3":"battle","btl-09.mp3":"boss","btl-10.mp3":"boss","btl-01.mp3":"boss","rs-saru.mp3":"boss","ff5-big.mp3":"boss","FF6_106.mp3":"explore"
+ };
+ const enc=new TextEncoder(),dec=new TextDecoder();
+ const cat=parts=>{let n=parts.reduce((v,a)=>v+a.length,0),out=new Uint8Array(n),p=0;for(const a of parts){out.set(a,p);p+=a.length;}return out;};
+ const u16=n=>new Uint8Array([n&255,(n>>8)&255]);
+ const u32=n=>new Uint8Array([n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255]);
+ let changed=0;
+ function actions(data){
+  let pos=0,parts=[];
+  while(pos<data.length){
+   const start=pos,op=data[pos++];
+   if(op===0){parts.push(data.slice(start,pos));continue;}
+   if(op<128){parts.push(data.slice(start,pos));continue;}
+   if(pos+2>data.length){parts.push(data.slice(start));break;}
+   const size=data[pos]|data[pos+1]<<8;pos+=2;
+   if(pos+size>data.length){parts.push(data.slice(start));break;}
+   let payload=data.slice(pos,pos+size);pos+=size;
+   if(op===0x88&&payload.length>=2){
+    const count=payload[0]|payload[1]<<8;
+    let offset=2,entries=[],valid=true;
+    for(let i=0;i<count;i++){
+     const end=payload.indexOf(0,offset);
+     if(end<0){valid=false;break;}
+     let str=dec.decode(payload.slice(offset,end));
+     const found=Object.keys(mapping).find(key=>str.toLowerCase().endsWith("/"+key.toLowerCase()));
+     if(found){str=target[mapping[found]];changed++;}
+     entries.push(cat([enc.encode(str),new Uint8Array([0])]));
+     offset=end+1;
+    }
+    if(valid){payload=cat([u16(count),...entries,payload.slice(offset)]);}
+   }
+   parts.push(cat([new Uint8Array([op]),u16(payload.length),payload]));
+  }
+  return cat(parts);
+ }
+ const rect=(5+4*(body[0]>>3)+7)>>3,headerEnd=rect+4;
+ let at=headerEnd,parts=[body.slice(0,headerEnd)];
+ while(at+2<=body.length){
+  const h=body[at]|body[at+1]<<8;at+=2;const code=h>>6;
+  let len=h&63;if(len===63){len=(body[at]|body[at+1]<<8|body[at+2]<<16|body[at+3]<<24)>>>0;at+=4;}
+  if(at+len>body.length)throw Error("SWF tag overflow");
+  let payload=body.slice(at,at+len);at+=len;
+  if(code===12)payload=actions(payload);
+  // Keep every tag header valid when the action constant-pool changes size.
+  const head=payload.length<63?u16((code<<6)|payload.length):cat([u16((code<<6)|63),u32(payload.length)]);
+  parts.push(head,payload);
+  if(code===0)break;
+ }
+ const tail=body.slice(at);if(tail.length)parts.push(tail);
+ const rebuilt=cat(parts);
+ const compressed=new Uint8Array(await new Response(new Blob([rebuilt]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+ const output=cat([bytes.slice(0,4),u32(rebuilt.length+8),compressed]);
+ document.getElementById("native-status").textContent="已替換 "+changed+" 個 SWF 原生 BGM 音源（原遊戲自行決定切換）";
+ return output;
+}
+let player;const status=document.getElementById("status");window.addEventListener("load",async()=>{try{
+status.textContent="BGM：檢查遊戲檔…";
+const response=await fetch("./game.swf?v=3",{cache:"no-store"});
+if(!response.ok)throw Error("SWF HTTP "+response.status);
+const bytes=await response.arrayBuffer();
+const signature=String.fromCharCode(...new Uint8Array(bytes.slice(0,3)));
+if(!["FWS","CWS","ZWS"].includes(signature))throw Error("SWF 格式異常："+signature);
+status.textContent="BGM：SWF "+Math.round(bytes.byteLength/1024)+"KB，啟動模擬器…";
+if(!window.RufflePlayer?.newest)throw Error("Ruffle 程式未載入");
+player=window.RufflePlayer.newest().createPlayer();
+document.getElementById("stage").appendChild(player);
+await player.load({data:await patchNativeBgm(await shrinkSwfText(bytes)),swfFileName:"game.swf"});
+status.textContent="BGM：已送入遊戲（請檢查畫面）";
+}catch(e){status.textContent="BGM 失敗："+(e?.message||String(e));console.error(e)}});
+// Prevent iOS text selection/callout only on directional controls.
+for(const group of document.querySelectorAll(".dpad,.actions")){
+ ["contextmenu","selectstart","dragstart"].forEach(type=>group.addEventListener(type,e=>e.preventDefault()));
+ group.addEventListener("touchstart",e=>{if(e.cancelable)e.preventDefault();},{passive:false});
+}
+const keys={ArrowUp:"ArrowUp",ArrowDown:"ArrowDown",ArrowLeft:"ArrowLeft",ArrowRight:"ArrowRight",KeyZ:"z",KeyX:"x",Enter:"Enter"};const active=new Map();function send(code,type){if(!player)return;player.focus();player.dispatchEvent(new KeyboardEvent(type,{key:keys[code],code,bubbles:true,cancelable:true,composed:true}))}document.querySelectorAll("[data-key]").forEach(b=>{const k=b.dataset.key;b.addEventListener("pointerdown",e=>{e.preventDefault();b.setPointerCapture(e.pointerId);active.set(e.pointerId,k);b.classList.add("pressed");send(k,"keydown")});function release(e){if(active.get(e.pointerId)!==k)return;active.delete(e.pointerId);b.classList.remove("pressed");send(k,"keyup")}b.addEventListener("pointerup",release);b.addEventListener("pointercancel",release);b.addEventListener("lostpointercapture",release)});
+
+// Desktop keyboard fallback: route real physical key events into Ruffle even
+// when the page header/music controls hold focus. Never intercept text inputs.
+window.addEventListener("keydown",forwardPhysicalKey,true);
+window.addEventListener("keyup",forwardPhysicalKey,true);
+function forwardPhysicalKey(e){
+ if(!player||e.isComposing||e.ctrlKey||e.metaKey||e.altKey)return;
+ const tag=e.target?.tagName?.toLowerCase();
+ if(tag==="input"||tag==="textarea"||tag==="select"||e.target?.isContentEditable)return;
+ const code=e.code;
+ if(!["KeyZ","KeyX","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Enter"].includes(code))return;
+ // When the actual keyboard event already targets Ruffle, don't duplicate it.
+ if(e.composedPath().includes(player))return;
+ e.preventDefault();
+ player.dispatchEvent(new KeyboardEvent(e.type,{key:keys[code],code,bubbles:true,cancelable:true,composed:true,repeat:e.repeat}));
+}
+</script>
+</body></html>
